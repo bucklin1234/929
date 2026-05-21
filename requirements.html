@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>929 Cafe — Requirements Specification</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f4f0;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    /* ── Cover ── */
+    .cover {
+      background: #1a1a1a;
+      color: #fff;
+      padding: 64px 48px 48px;
+    }
+    .cover .label {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .cover h1 {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .cover h1 span { color: #e8a84c; }
+    .cover .subtitle {
+      font-size: 16px;
+      color: #aaa;
+      margin-bottom: 32px;
+    }
+    .cover .meta {
+      display: flex;
+      gap: 32px;
+      font-size: 13px;
+      color: #666;
+      border-top: 1px solid #333;
+      padding-top: 24px;
+    }
+    .cover .meta strong { color: #aaa; display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 32px;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: #fff;
+      border: 1px solid #e0ddd6;
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin-bottom: 48px;
+    }
+    .toc h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .toc ol {
+      padding-left: 20px;
+    }
+    .toc li { margin-bottom: 6px; }
+    .toc a { color: #c47f1a; text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Sections ── */
+    section { margin-bottom: 56px; }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 10px;
+    }
+    .section-number {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #e8a84c;
+      min-width: 24px;
+    }
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    /* ── Sub-sections ── */
+    .subsection { margin-bottom: 32px; }
+    .subsection h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .subsection h3::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #e8a84c;
+      border-radius: 2px;
+    }
+
+    p { margin-bottom: 12px; font-size: 15px; color: #333; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin-bottom: 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    thead {
+      background: #1a1a1a;
+      color: #fff;
+    }
+    thead th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    tbody tr:nth-child(even) { background: #faf9f6; }
+    tbody tr:hover { background: #fff3dc; }
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #e8e5de;
+      vertical-align: top;
+    }
+    td code, th code {
+      background: #f0ede6;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    /* ── Station Arc Preview ── */
+    .arc-preview {
+      background: #fff;
+      border: 1px solid #e0ddd6;
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .arc-preview svg { max-width: 100%; }
+
+    /* ── Station Grid ── */
+    .station-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .station-card {
+      background: #fff;
+      border: 1px solid #e0ddd6;
+      border-radius: 8px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .station-card .pos {
+      font-size: 11px;
+      font-weight: 700;
+      color: #e8a84c;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .station-card .name { font-size: 15px; font-weight: 600; }
+
+    /* ── Rules / Callout ── */
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 600px) { .rules-grid { grid-template-columns: 1fr; } }
+
+    .rule-card {
+      background: #fff;
+      border: 1px solid #e0ddd6;
+      border-left: 4px solid #e8a84c;
+      border-radius: 6px;
+      padding: 14px 16px;
+    }
+    .rule-card .rule-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .rule-card .rule-value { font-size: 14px; font-weight: 600; }
+
+    /* ── Feature List ── */
+    .feature-list {
+      list-style: none;
+      margin-bottom: 16px;
+    }
+    .feature-list li {
+      padding: 8px 0 8px 24px;
+      border-bottom: 1px solid #f0ede6;
+      font-size: 14px;
+      position: relative;
+      color: #333;
+    }
+    .feature-list li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: #e8a84c;
+      font-weight: 700;
+    }
+    .feature-list li:last-child { border-bottom: none; }
+
+    /* ── Page cards ── */
+    .page-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .page-card {
+      background: #fff;
+      border: 1px solid #e0ddd6;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .page-card h4 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .page-card p { font-size: 13px; color: #555; margin: 0; }
+
+    /* ── Scope boxes ── */
+    .scope-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 600px) { .scope-row { grid-template-columns: 1fr; } }
+
+    .scope-box {
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+    .scope-box.in  { background: #edf7ed; border: 1px solid #b2d9b2; }
+    .scope-box.out { background: #fdf3e7; border: 1px solid #f0d0a0; }
+    .scope-box h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    .scope-box.in  h4 { color: #2e7d32; }
+    .scope-box.out h4 { color: #a0522d; }
+    .scope-box ul  { padding-left: 18px; }
+    .scope-box li  { font-size: 13px; margin-bottom: 5px; }
+
+    /* ── Open Questions ── */
+    .oq-list { list-style: none; }
+    .oq-list li {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #e8e5de;
+      font-size: 14px;
+    }
+    .oq-list li:last-child { border-bottom: none; }
+    .oq-badge {
+      background: #1a1a1a;
+      color: #e8a84c;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 2px 8px;
+      min-width: 28px;
+      text-align: center;
+      height: fit-content;
+      margin-top: 1px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 12px;
+      color: #999;
+      border-top: 1px solid #e0ddd6;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <div class="label">Requirements Specification · v0.1 · Prototype Scope</div>
+  <h1><span>929</span> Multi-Cuisine Food Cafe</h1>
+  <div class="subtitle">Web Application — Pre-Physical Store Launch</div>
+  <div class="meta">
+    <div><strong>Version</strong>0.1</div>
+    <div><strong>Date</strong>2026-05-15</div>
+    <div><strong>Phase</strong>Prototype</div>
+    <div><strong>Status</strong>Draft</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#s1">Concept Overview</a></li>
+      <li><a href="#s2">Canonical Data Model</a></li>
+      <li><a href="#s3">Operating Rules</a></li>
+      <li><a href="#s4">Web Application — Features</a></li>
+      <li><a href="#s5">Admin &amp; Operations (Deferred)</a></li>
+      <li><a href="#s6">Prototype Scope</a></li>
+      <li><a href="#s7">Open Questions</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1. Concept Overview -->
+  <section id="s1">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2>Concept Overview</h2>
+    </div>
+    <p>
+      A multi-cuisine food cafe operating <strong>9 AM – 9 PM</strong> daily ("9 to 9"), with
+      <strong>9 cuisine stations</strong> arranged in a semicircular layout. Customers browse each
+      station, add items to a shared cart, and pay at a single central checkout point.
+    </p>
+    <p>
+      The web application mirrors this physical store experience and serves as the launch vehicle
+      before the physical store opens. The UI directly reflects the intended floor plan — a
+      semicircular arc with radiating segments, a central counter, and a checkout anchored to the
+      right.
+    </p>
+
+    <!-- SVG Arc Diagram -->
+    <div class="arc-preview">
+      <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+        <!-- Outer arc segments (9 segments in semicircle) -->
+        <!-- Using paths for a proper protractor shape -->
+
+        <defs>
+          <clipPath id="semi"><rect x="0" y="0" width="520" height="260"/></clipPath>
+        </defs>
+
+        <!-- segment fills -->
+        <g clip-path="url(#semi)">
+          <!-- Segment colours alternate between warm tones -->
+          <!-- We'll draw 9 equal segments of 180°/9 = 20° each -->
+          <!-- Outer radius 230, inner radius 90, centre 260,260 -->
+
+          <g id="segs" transform="translate(260,260)">
+            <!-- Segment 1: 180°–160° (leftmost = Coffee) -->
+            <path d="M0,0 L-230,0 A230,230 0 0,1 -216.4,-83.9 Z" fill="#fff3dc" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L-90,0 A90,90 0 0,1 -84.5,-32.7 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 2: 160°–140° (Sushi) -->
+            <path d="M0,0 L-216.4,-83.9 A230,230 0 0,1 -176.2,-154.8 Z" fill="#fff" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L-84.5,-32.7 A90,90 0 0,1 -68.9,-60.5 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 3: 140°–120° (Boba) -->
+            <path d="M0,0 L-176.2,-154.8 A230,230 0 0,1 -115,-199.2 Z" fill="#fff3dc" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L-68.9,-60.5 A90,90 0 0,1 -45,-77.9 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 4: 120°–100° (Salad) -->
+            <path d="M0,0 L-115,-199.2 A230,230 0 0,1 -39.9,-226.5 Z" fill="#fff" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L-45,-77.9 A90,90 0 0,1 -15.6,-88.6 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 5: 100°–80° (Ice Cream — top centre) -->
+            <path d="M0,0 L-39.9,-226.5 A230,230 0 0,1 39.9,-226.5 Z" fill="#fff3dc" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L-15.6,-88.6 A90,90 0 0,1 15.6,-88.6 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 6: 80°–60° (Biryani) -->
+            <path d="M0,0 L39.9,-226.5 A230,230 0 0,1 115,-199.2 Z" fill="#fff" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L15.6,-88.6 A90,90 0 0,1 45,-77.9 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 7: 60°–40° (Pizza) -->
+            <path d="M0,0 L115,-199.2 A230,230 0 0,1 176.2,-154.8 Z" fill="#fff3dc" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L45,-77.9 A90,90 0 0,1 68.9,-60.5 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 8: 40°–20° (Juice Centre) -->
+            <path d="M0,0 L176.2,-154.8 A230,230 0 0,1 216.4,-83.9 Z" fill="#fff" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L68.9,-60.5 A90,90 0 0,1 84.5,-32.7 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Segment 9: 20°–0° (Cake — rightmost) -->
+            <path d="M0,0 L216.4,-83.9 A230,230 0 0,1 230,0 Z" fill="#fff3dc" stroke="#e0ddd6" stroke-width="1.5"/>
+            <path d="M0,0 L84.5,-32.7 A90,90 0 0,1 90,0 Z" fill="#f5f4f0" stroke="#e0ddd6" stroke-width="1"/>
+
+            <!-- Counter ellipse -->
+            <ellipse cx="0" cy="-10" rx="55" ry="30" fill="#1a1a1a"/>
+            <text x="0" y="-6" text-anchor="middle" fill="#e8a84c" font-size="10" font-weight="700">COUNTER</text>
+          </g>
+
+          <!-- Station labels -->
+          <text x="34"  y="235" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Coffee</text>
+          <text x="76"  y="174" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Sushi</text>
+          <text x="126" y="115" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Boba</text>
+          <text x="186" y="72"  font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Salad</text>
+          <text x="260" y="52"  font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Ice Cream</text>
+          <text x="336" y="72"  font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Biryani</text>
+          <text x="394" y="115" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Pizza</text>
+          <text x="440" y="174" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Juice</text>
+          <text x="484" y="235" font-size="9.5" font-weight="600" fill="#555" text-anchor="middle">Cake</text>
+        </g>
+
+        <!-- Flat base line -->
+        <line x1="30" y1="260" x2="490" y2="260" stroke="#1a1a1a" stroke-width="2"/>
+
+        <!-- Entrance arrow -->
+        <text x="260" y="285" text-anchor="middle" font-size="10" fill="#888" font-weight="600" letter-spacing="0.1em">▲ ENTRANCE</text>
+
+        <!-- Checkout box -->
+        <rect x="424" y="262" width="72" height="24" rx="4" fill="#e8a84c"/>
+        <text x="460" y="278" text-anchor="middle" font-size="10" font-weight="700" fill="#1a1a1a">CHECKOUT</text>
+      </svg>
+      <p style="font-size:12px; color:#999; margin-top:12px;">Schematic representation — not to scale</p>
+    </div>
+  </section>
+
+  <!-- 2. Canonical Data Model -->
+  <section id="s2">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2>Canonical Data Model</h2>
+    </div>
+
+    <!-- 2.1 Cuisine Station -->
+    <div class="subsection">
+      <h3>2.1 &nbsp;Cuisine Station</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>integer</td><td>1–9; determines arc position</td></tr>
+            <tr><td><code>name</code></td><td>string</td><td>e.g., "Biryani", "Juice Centre"</td></tr>
+            <tr><td><code>position</code></td><td>integer</td><td>Arc order — 1 = leftmost, 9 = rightmost</td></tr>
+            <tr><td><code>is_active</code></td><td>boolean</td><td>Whether station is open today</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:20px;">Station Order (Left → Right)</h3>
+      <div class="station-grid">
+        <div class="station-card"><div class="pos">Position 1</div><div class="name">Coffee</div></div>
+        <div class="station-card"><div class="pos">Position 2</div><div class="name">Sushi</div></div>
+        <div class="station-card"><div class="pos">Position 3</div><div class="name">Boba</div></div>
+        <div class="station-card"><div class="pos">Position 4</div><div class="name">Salad</div></div>
+        <div class="station-card"><div class="pos">Position 5</div><div class="name">Ice Cream</div></div>
+        <div class="station-card"><div class="pos">Position 6</div><div class="name">Biryani</div></div>
+        <div class="station-card"><div class="pos">Position 7</div><div class="name">Pizza</div></div>
+        <div class="station-card"><div class="pos">Position 8</div><div class="name">Juice Centre</div></div>
+        <div class="station-card"><div class="pos">Position 9</div><div class="name">Cake</div></div>
+      </div>
+    </div>
+
+    <!-- 2.2 Menu Item -->
+    <div class="subsection">
+      <h3>2.2 &nbsp;Menu Item</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>uuid</td><td>Unique identifier</td></tr>
+            <tr><td><code>station_id</code></td><td>integer</td><td>FK → Cuisine Station</td></tr>
+            <tr><td><code>name</code></td><td>string</td><td>Item name</td></tr>
+            <tr><td><code>description</code></td><td>string</td><td>Short description</td></tr>
+            <tr><td><code>price</code></td><td>decimal</td><td>In local currency</td></tr>
+            <tr><td><code>image_url</code></td><td>string</td><td>Optional item image</td></tr>
+            <tr><td><code>is_available</code></td><td>boolean</td><td>Togglable mid-day if sold out</td></tr>
+            <tr><td><code>rotation_slot</code></td><td>integer</td><td>Day number in the rotation cycle this item belongs to</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2.3 Daily Menu -->
+    <div class="subsection">
+      <h3>2.3 &nbsp;Daily Menu (Rotation)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>uuid</td><td></td></tr>
+            <tr><td><code>station_id</code></td><td>integer</td><td>FK → Cuisine Station</td></tr>
+            <tr><td><code>cycle_day</code></td><td>integer</td><td>Day number in the rotation cycle (e.g., 1–7)</td></tr>
+            <tr><td><code>item_ids</code></td><td>array</td><td>Menu Item IDs active on this cycle day</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="feature-list">
+        <li>Menu changes <strong>overnight</strong> (midnight cutover)</li>
+        <li>Each station has a predefined rotation cycle configured in advance by admin</li>
+        <li>Active menu = items whose <code>cycle_day</code> matches today's position in the cycle</li>
+        <li>Prototype uses <strong>seeded static data</strong> — live rotation is a later-phase feature</li>
+      </ul>
+    </div>
+
+    <!-- 2.4 Cart -->
+    <div class="subsection">
+      <h3>2.4 &nbsp;Cart</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>session_id</code></td><td>uuid</td><td>Anonymous session identifier</td></tr>
+            <tr><td><code>items</code></td><td>array</td><td>List of Cart Items</td></tr>
+            <tr><td><code>total_cost</code></td><td>decimal</td><td>Sum of (price × quantity) across all items</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2.5 Cart Item -->
+    <div class="subsection">
+      <h3>2.5 &nbsp;Cart Item</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>item_id</code></td><td>uuid</td><td>FK → Menu Item</td></tr>
+            <tr><td><code>station_id</code></td><td>integer</td><td>Denormalized for display grouping</td></tr>
+            <tr><td><code>name</code></td><td>string</td><td>Snapshot at time of adding to cart</td></tr>
+            <tr><td><code>price</code></td><td>decimal</td><td>Snapshot at time of adding to cart</td></tr>
+            <tr><td><code>quantity</code></td><td>integer</td><td>Minimum 1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Operating Rules -->
+  <section id="s3">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2>Operating Rules</h2>
+    </div>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-label">Operating Hours</div>
+        <div class="rule-value">9:00 AM – 9:00 PM daily</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-label">Outside Hours</div>
+        <div class="rule-value">Store shows "Closed" state — browsing allowed, ordering disabled</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-label">Menu Cadence</div>
+        <div class="rule-value">Changes overnight via predefined rotation cycle</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-label">Ordering Model</div>
+        <div class="rule-value">Customer collects from individual stations, pays at one checkout</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-label">Consumption Model</div>
+        <div class="rule-value">Takeout only — no dine-in</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-label">Payment Point</div>
+        <div class="rule-value">Single central checkout — all cuisines combined into one transaction</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Web Application Features -->
+  <section id="s4">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2>Web Application — Feature Requirements</h2>
+    </div>
+
+    <!-- Pages -->
+    <div class="subsection">
+      <h3>4.1 &nbsp;Pages</h3>
+      <div class="page-cards">
+        <div class="page-card">
+          <h4>Home / Store View</h4>
+          <p>Semicircular station map — the primary browsing and ordering experience</p>
+        </div>
+        <div class="page-card">
+          <h4>Checkout</h4>
+          <p>Cart review and order placement with grand total</p>
+        </div>
+        <div class="page-card">
+          <h4>Contacts</h4>
+          <p>Static info: phone, email, address, operating hours</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Home / Store View -->
+    <div class="subsection">
+      <h3>4.2 &nbsp;Home / Store View</h3>
+
+      <h4 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin:16px 0 8px;">Layout</h4>
+      <ul class="feature-list">
+        <li>Render a <strong>semicircular arc</strong> with 9 equal radiating segments</li>
+        <li>Each segment is labelled with its cuisine station name</li>
+        <li>A <strong>central counter</strong> element sits inside the arc (visual landmark)</li>
+        <li><strong>Entrance</strong> indicator at the flat bottom edge of the arc</li>
+        <li><strong>Checkout</strong> button anchored at bottom-right</li>
+      </ul>
+
+      <h4 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin:16px 0 8px;">Segment Interaction</h4>
+      <ul class="feature-list">
+        <li>User clicks a segment → that segment <strong>expands / pops out</strong> to reveal its item list</li>
+        <li>All other 8 segments <strong>gray out</strong> — visually dimmed and non-interactive while one is open</li>
+        <li>User can close the expanded segment to return to full arc view</li>
+        <li>Only one segment can be expanded at a time</li>
+      </ul>
+
+      <h4 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin:16px 0 8px;">Item Selection (within an expanded segment)</h4>
+      <ul class="feature-list">
+        <li>Today's menu items listed: name, description, price, optional image</li>
+        <li>Each item has an <strong>Add to Cart</strong> button</li>
+        <li>Multiple items from the same station can be added before closing</li>
+        <li>Quantity adjustable with + / − controls</li>
+      </ul>
+
+      <h4 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.1em; margin:16px 0 8px;">Cart Behaviour</h4>
+      <ul class="feature-list">
+        <li>Cart persists across station browsing — does not reset when a segment closes</li>
+        <li>Floating cart indicator (item count + running total) always visible</li>
+        <li>Cart panel accessible at any point without navigating away</li>
+        <li>Cart displays: item name, station, quantity, line total</li>
+        <li>Cart displays: <strong>grand total</strong></li>
+        <li><strong>Proceed to Checkout</strong> action in cart panel</li>
+      </ul>
+    </div>
+
+    <!-- Checkout -->
+    <div class="subsection">
+      <h3>4.3 &nbsp;Checkout View</h3>
+      <ul class="feature-list">
+        <li>Full summary of all cart items grouped by station</li>
+        <li>Grand total displayed prominently</li>
+        <li>Order confirmation action (payment integration deferred to a later phase)</li>
+      </ul>
+    </div>
+
+    <!-- Contacts -->
+    <div class="subsection">
+      <h3>4.4 &nbsp;Contacts Page</h3>
+      <ul class="feature-list">
+        <li>Static content: store name, address, phone, email</li>
+        <li>Operating hours: 9 AM – 9 PM</li>
+        <li>No contact form (deferred)</li>
+      </ul>
+    </div>
+
+    <!-- Hours Gate -->
+    <div class="subsection">
+      <h3>4.5 &nbsp;Operating Hours Gate</h3>
+      <ul class="feature-list">
+        <li>If current time is outside 9 AM – 9 PM, the store shows a <strong>"We're Closed"</strong> state</li>
+        <li>Ordering is disabled — Add to Cart buttons hidden or disabled</li>
+        <li>Menu browsing remains available in <strong>read-only mode</strong></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. Admin Deferred -->
+  <section id="s5">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2>Admin &amp; Operations — Deferred</h2>
+    </div>
+    <p>The following capabilities are noted for future phases and are <strong>not</strong> part of the prototype.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Capability</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Admin login &amp; dashboard</td><td>Secure staff-only access</td></tr>
+          <tr><td>Menu item CRUD per station</td><td>Add, edit, remove items per cuisine</td></tr>
+          <tr><td>Rotation cycle configuration</td><td>Define cycle length and which items appear on which day</td></tr>
+          <tr><td>Per-item availability toggle</td><td>Mark items sold out mid-day</td></tr>
+          <tr><td>Order management &amp; fulfilment</td><td>Kitchen/counter view of incoming orders</td></tr>
+          <tr><td>Payment gateway integration</td><td>Online card payment at checkout</td></tr>
+          <tr><td>Customer accounts</td><td>Login, order history, saved preferences</td></tr>
+          <tr><td>Ready time / queue estimation</td><td>Per-item prep time displayed in cart</td></tr>
+          <tr><td>Contact form</td><td>Customer enquiry submission</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. Prototype Scope -->
+  <section id="s6">
+    <div class="section-header">
+      <span class="section-number">06</span>
+      <h2>Prototype Scope</h2>
+    </div>
+    <div class="scope-row">
+      <div class="scope-box in">
+        <h4>In Scope</h4>
+        <ul>
+          <li>Semicircular 9-station UI</li>
+          <li>Segment pop-out &amp; gray-out interaction</li>
+          <li>Today's menu items per station (seeded data)</li>
+          <li>Add to cart, quantity management</li>
+          <li>Running total &amp; cart panel</li>
+          <li>Checkout summary view</li>
+          <li>Operating hours gate (open/closed state)</li>
+          <li>Contacts page (static)</li>
+        </ul>
+      </div>
+      <div class="scope-box out">
+        <h4>Out of Scope (Prototype)</h4>
+        <ul>
+          <li>Live payment processing</li>
+          <li>Admin panel &amp; menu management</li>
+          <li>User authentication</li>
+          <li>Ready time / queue display</li>
+          <li>Live menu rotation (use seeded data)</li>
+          <li>Contact form</li>
+          <li>Mobile-native app</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Open Questions -->
+  <section id="s7">
+    <div class="section-header">
+      <span class="section-number">07</span>
+      <h2>Open Questions</h2>
+    </div>
+    <ul class="oq-list">
+      <li><span class="oq-badge">A</span>What are the specific menu items for each station? (Needed to seed prototype data)</li>
+      <li><span class="oq-badge">B</span>What is the rotation cycle length? (7-day, 14-day, or other?)</li>
+      <li><span class="oq-badge">C</span>What currency and locale does pricing use?</li>
+      <li><span class="oq-badge">D</span>Is there a brand/store name for the cafe beyond "929"?</li>
+      <li><span class="oq-badge">E</span>Payment at checkout: online card payment, or pay-at-counter on pickup?</li>
+      <li><span class="oq-badge">F</span>Do customers need an account to order, or is guest checkout sufficient?</li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>
+  929 Multi-Cuisine Food Cafe &nbsp;·&nbsp; Requirements Specification v0.1 &nbsp;·&nbsp; 2026-05-15
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How an LLM Request Works</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #21262d;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --blue:     #58a6ff;
+  --green:    #3fb950;
+  --yellow:   #e3b341;
+  --purple:   #bc8cff;
+  --orange:   #ffa657;
+  --red:      #ff7b72;
+  --cyan:     #79c0ff;
+}
+
+body {
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 28px 40px 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+}
+header h1 { font-size: 20px; font-weight: 700; color: var(--text); }
+header p  { font-size: 13px; color: var(--muted); }
+
+/* ── STEP PROGRESS ── */
+.steps-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.3s, border-color 0.3s;
+}
+.step.active { color: var(--blue); border-bottom-color: var(--blue); }
+.step.done   { color: var(--green); border-bottom-color: var(--green); }
+.step-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted); transition: background 0.3s;
+}
+.step.active .step-dot { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+.step.done   .step-dot { background: var(--green); }
+.step-arrow { color: var(--border); font-size: 14px; padding: 0 4px; flex-shrink: 0; }
+
+/* ── MAIN LAYOUT ── */
+.main { max-width: 1200px; margin: 0 auto; padding: 32px 40px 80px; display: flex; flex-direction: column; gap: 32px; }
+
+/* ── SECTION ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.4s;
+}
+.card.active-card { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(88,166,255,0.15); }
+.card.done-card   { border-color: rgba(63,185,80,0.4); }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.step-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  flex-shrink: 0; transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+.card.active-card .step-badge { background: var(--blue); border-color: var(--blue); color: #000; }
+.card.done-card   .step-badge { background: var(--green); border-color: var(--green); color: #000; }
+
+.card-head h2 { font-size: 14px; font-weight: 600; }
+.card-body { padding: 24px; }
+
+/* ── BADGES ── */
+.badge-method { background: #1a3a5c; color: var(--blue); border: 1px solid var(--blue); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em; }
+.badge-status { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+.badge-status.ok  { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+.role-pill { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; letter-spacing: 0.05em; text-transform: uppercase; }
+.role-system { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+.role-user   { background: rgba(88,166,255,0.15);  color: var(--blue);   border: 1px solid rgba(88,166,255,0.3); }
+
+.url-text { font-size: 12px; color: var(--muted); font-family: monospace; margin-left: 4px; }
+
+/* ── COMPOSE GRID ── */
+.compose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 700px) { .compose-grid { grid-template-columns: 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+textarea, select {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; font-family: inherit;
+  font-size: 13px; padding: 10px 12px; transition: border-color 0.2s;
+  resize: vertical;
+}
+textarea { min-height: 72px; }
+textarea:focus, select:focus { outline: none; border-color: var(--blue); }
+
+.param-group { margin-bottom: 20px; }
+.param-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.param-val { color: var(--yellow); font-family: monospace; font-size: 13px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+
+input[type=range] { width: 100%; accent-color: var(--blue); cursor: pointer; }
+.range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+.toggle-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+input[type=checkbox] { accent-color: var(--blue); width: 15px; height: 15px; cursor: pointer; }
+.hint { font-size: 11px; color: var(--muted); }
+
+/* ── SEND BUTTON ── */
+#send-btn {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--blue); color: #000; border: none;
+  padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; margin-top: 8px;
+  transition: background 0.2s, transform 0.1s;
+}
+#send-btn:hover { background: #79baff; }
+#send-btn:active { transform: scale(0.98); }
+#send-btn:disabled { background: var(--surface2); color: var(--muted); cursor: default; }
+.send-spinner { display: none; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.3); border-top-color: #000; border-radius: 50%; animation: spin 0.7s linear infinite; }
+#send-btn.loading .send-spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TWO-COL ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+.col-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+/* ── HEADERS BLOCK ── */
+.headers-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; font-size: 12px; font-family: monospace; }
+.header-row { display: flex; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.header-row:last-child { border-bottom: none; }
+.hk { color: var(--cyan); min-width: 160px; }
+.hv { color: var(--orange); }
+
+/* ── JSON BLOCK ── */
+.json-block {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 16px;
+  font-size: 12px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  overflow-x: auto; min-height: 120px;
+}
+.json-block pre { white-space: pre-wrap; word-break: break-word; }
+
+/* JSON syntax colours */
+.jk  { color: var(--cyan); }
+.js  { color: var(--orange); }
+.jn  { color: var(--purple); }
+.jb  { color: var(--red); }
+.jnull { color: var(--red); opacity: 0.7; }
+.janno { color: var(--muted); font-style: italic; }
+.annotated { border-bottom: 1px dashed var(--muted); cursor: help; position: relative; }
+.annotated:hover::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; bottom: 120%; width: 240px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-size: 11px; font-style: normal; padding: 8px 10px;
+  border-radius: 6px; z-index: 100; white-space: normal; line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ── TRANSIT ── */
+#transit-bar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 16px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+#transit-bar.visible { display: flex; }
+
+.transit-endpoint { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.transit-line {
+  flex: 1; height: 2px; background: var(--border); margin: 0 20px;
+  position: relative; overflow: visible;
+}
+.transit-label {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: var(--muted); white-space: nowrap; letter-spacing: 0.06em;
+}
+.packet {
+  position: absolute; top: -5px; left: -6px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--blue); box-shadow: 0 0 8px var(--blue);
+  transition: none;
+}
+.packet.animate-right { animation: travel-right 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.packet.animate-left  { animation: travel-left  0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes travel-right { 0% { left:-6px; opacity:1; } 100% { left:calc(100% - 6px); opacity:1; } }
+@keyframes travel-left  { 0% { left:calc(100% - 6px); opacity:1; } 100% { left:-6px; opacity:1; } }
+
+.server-icon {
+  font-size: 28px; flex-shrink: 0;
+  position: relative;
+}
+.server-icon.pulse { animation: server-pulse 0.6s ease-in-out infinite alternate; }
+@keyframes server-pulse { from { filter: brightness(1); } to { filter: brightness(1.8) drop-shadow(0 0 8px var(--blue)); } }
+
+/* ── PROCESSING ── */
+.proc-steps { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.proc-step {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border); font-size: 12px;
+  color: var(--muted); background: var(--surface2);
+  transition: all 0.3s;
+}
+.proc-step.active { border-color: var(--blue); color: var(--blue); background: rgba(88,166,255,0.1); box-shadow: 0 0 8px rgba(88,166,255,0.2); }
+.proc-step.done   { border-color: var(--green); color: var(--green); background: rgba(63,185,80,0.1); }
+
+.token-stream {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 16px; min-height: 40px;
+  font-size: 12px; font-family: monospace; color: var(--yellow);
+  letter-spacing: 0.04em; display: none;
+}
+.token-stream.visible { display: block; }
+.tok { display: inline-block; padding: 1px 4px; margin: 1px; border-radius: 3px; border: 1px solid; animation: tok-in 0.15s ease; }
+@keyframes tok-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.tok-0 { color: #79c0ff; border-color: rgba(121,192,255,0.3); background: rgba(121,192,255,0.08); }
+.tok-1 { color: #ffa657; border-color: rgba(255,166,87,0.3);  background: rgba(255,166,87,0.08); }
+.tok-2 { color: #bc8cff; border-color: rgba(188,140,255,0.3); background: rgba(188,140,255,0.08); }
+.tok-3 { color: #3fb950; border-color: rgba(63,185,80,0.3);   background: rgba(63,185,80,0.08); }
+
+/* ── RESPONSE ── */
+.rendered-output {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px; min-height: 80px;
+  font-size: 14px; line-height: 1.7; color: var(--text);
+  white-space: pre-wrap;
+}
+.cursor { display: inline-block; width: 2px; height: 1em; background: var(--blue); margin-left: 1px; animation: blink 1s step-end infinite; vertical-align: text-bottom; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.usage-stats {
+  margin-top: 14px; display: none;
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+}
+.usage-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; text-align: center;
+}
+.usage-stat .us-val { font-size: 22px; font-weight: 700; color: var(--yellow); font-family: monospace; }
+.usage-stat .us-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+/* ── CONCEPTS ── */
+.concepts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 20px; }
+.concept-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; cursor: pointer;
+}
+.concept-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; font-size: 13px; font-weight: 600;
+  gap: 10px;
+}
+.concept-icon { font-size: 18px; }
+.concept-arrow { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+.concept-card.open .concept-arrow { transform: rotate(90deg); }
+.concept-body { padding: 0 18px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s; }
+.concept-card.open .concept-body { max-height: 300px; padding: 0 18px 16px; }
+.concept-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.concept-body code { background: var(--surface2); color: var(--yellow); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+/* ── RESET ── */
+#reset-btn {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  font-family: inherit; transition: border-color 0.2s, color 0.2s;
+}
+#reset-btn:hover { border-color: var(--text); color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>How an LLM API Request Works</h1>
+  <p>Compose a request and watch it travel — every field is explained</p>
+</header>
+
+<!-- Step progress bar -->
+<div class="steps-bar">
+  <div class="step active" id="s1"><div class="step-dot"></div>Compose</div>
+  <div class="step-arrow">›</div>
+  <div class="step" id="s2"><div class="step-dot"></div>HTTP Request</div>
+  <div class="step-arrow">›</div>
+  <div class="step" id="s3"><div class="step-dot"></div>Processing</div>
+  <div class="step-arrow">›</div>
+  <div class="step" id="s4"><div class="step-dot"></div>Response</div>
+</div>
+
+<div class="main">
+
+  <!-- ① COMPOSE -->
+  <div class="card active-card" id="card1">
+    <div class="card-head">
+      <div class="step-badge">1</div>
+      <h2>Compose Your Request</h2>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <button id="reset-btn" onclick="resetAll()" style="display:none">↺ Reset</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="compose-grid">
+        <div>
+          <div class="field">
+            <label><span class="role-pill role-system">system</span> System Prompt</label>
+            <textarea id="system-prompt" placeholder="You are a helpful assistant." oninput="updateLiveJSON()">You are a helpful assistant.</textarea>
+          </div>
+          <div class="field">
+            <label><span class="role-pill role-user">user</span> User Message</label>
+            <textarea id="user-message" placeholder="What are tokens in LLMs?" oninput="updateLiveJSON()">What are tokens in LLMs?</textarea>
+          </div>
+        </div>
+        <div>
+          <div class="param-group">
+            <label>Model <span class="param-val" id="model-val">claude-sonnet-4-6</span></label>
+            <select id="model-select" onchange="updateLiveJSON(); document.getElementById('model-val').textContent=this.value;">
+              <option value="claude-opus-4-7">claude-opus-4-7</option>
+              <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6</option>
+              <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001</option>
+            </select>
+          </div>
+          <div class="param-group">
+            <label>Temperature <span class="param-val" id="temp-val">0.7</span></label>
+            <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"
+              oninput="document.getElementById('temp-val').textContent=parseFloat(this.value).toFixed(1);updateLiveJSON()">
+            <div class="range-labels"><span>0 — Precise</span><span>2 — Creative</span></div>
+          </div>
+          <div class="param-group">
+            <label>Max Tokens <span class="param-val" id="maxtok-val">1024</span></label>
+            <input type="range" id="max-tokens" min="64" max="4096" step="64" value="1024"
+              oninput="document.getElementById('maxtok-val').textContent=this.value;updateLiveJSON()">
+            <div class="range-labels"><span>64</span><span>4096</span></div>
+          </div>
+          <div class="param-group">
+            <label>Stream <span class="param-val" id="stream-val">false</span></label>
+            <div class="toggle-row">
+              <input type="checkbox" id="stream-toggle"
+                onchange="document.getElementById('stream-val').textContent=this.checked?'true':'false';updateLiveJSON()">
+              <span class="hint">Token-by-token output</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live JSON preview (always visible) -->
+      <div style="margin-top:8px;">
+        <div class="col-title" style="margin-bottom:8px;">Live Request Preview — updates as you type</div>
+        <div class="json-block"><pre id="live-json-pre"></pre></div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+        <button id="send-btn" onclick="sendRequest()">
+          <div class="send-spinner"></div>
+          <span id="send-label">▶ &nbsp;Send Request</span>
+        </button>
+        <span style="font-size:12px;color:var(--muted);">This is a simulation — no real API key needed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSIT ANIMATION -->
+  <div id="transit-bar">
+    <div class="transit-endpoint">YOUR BROWSER</div>
+    <div class="transit-line">
+      <div class="transit-label" id="transit-label">HTTPS POST ›</div>
+      <div class="packet" id="packet"></div>
+    </div>
+    <div class="server-icon" id="server-icon">🖥</div>
+    <div style="margin-left:8px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">api.anthropic.com</div>
+  </div>
+
+  <!-- ② HTTP REQUEST -->
+  <div class="card" id="card2">
+    <div class="card-head">
+      <div class="step-badge">2</div>
+      <h2>HTTP Request</h2>
+      <span class="badge-method">POST</span>
+      <span class="url-text">https://api.anthropic.com/v1/messages</span>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-title">Request Headers</div>
+          <div class="headers-block">
+            <div class="header-row">
+              <span class="hk">x-api-key</span>
+              <span class="hv">sk-ant-api03-••••••••••••</span>
+            </div>
+            <div class="header-row">
+              <span class="hk">anthropic-version</span>
+              <span class="hv">2023-06-01</span>
+            </div>
+            <div class="header-row">
+              <span class="hk">content-type</span>
+              <span class="hv">application/json</span>
+            </div>
+          </div>
+          <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7;">
+            <div><span style="color:var(--cyan);">x-api-key</span> — authenticates your request</div>
+            <div><span style="color:var(--cyan);">anthropic-version</span> — pins the API contract</div>
+            <div><span style="color:var(--cyan);">content-type</span> — tells the server it's JSON</div>
+          </div>
+        </div>
+        <div>
+          <div class="col-title">Request Body — hover fields for explanations</div>
+          <div class="json-block"><pre id="annotated-json-pre"></pre></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ PROCESSING -->
+  <div class="card" id="card3">
+    <div class="card-head">
+      <div class="step-badge">3</div>
+      <h2>Model Processing</h2>
+      <span style="font-size:12px;color:var(--muted);margin-left:8px;">What happens inside the LLM</span>
+    </div>
+    <div class="card-body">
+      <div class="proc-steps">
+        <div class="proc-step" id="proc1">① Tokenise input</div>
+        <div class="proc-step" id="proc2">② Build attention map</div>
+        <div class="proc-step" id="proc3">③ Sample next token</div>
+        <div class="proc-step" id="proc4">④ Repeat until stop</div>
+        <div class="proc-step" id="proc5">⑤ Detokenise → text</div>
+      </div>
+      <div class="col-title" style="margin-bottom:8px;">Output tokens appearing one by one</div>
+      <div class="token-stream" id="token-stream"></div>
+    </div>
+  </div>
+
+  <!-- ④ RESPONSE -->
+  <div class="card" id="card4">
+    <div class="card-head">
+      <div class="step-badge">4</div>
+      <h2>Response</h2>
+      <span class="badge-status ok" id="status-badge" style="display:none">200 OK</span>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-title">Response JSON</div>
+          <div class="json-block" style="min-height:200px;"><pre id="response-json-pre"></pre></div>
+        </div>
+        <div>
+          <div class="col-title">Rendered Output (what the user sees)</div>
+          <div class="rendered-output" id="rendered-output"></div>
+          <div style="margin-top:16px;">
+            <div class="col-title" style="margin-bottom:8px;">Token Usage</div>
+            <div class="usage-stats" id="usage-stats">
+              <div class="usage-stat">
+                <div class="us-val" id="u-in">—</div>
+                <div class="us-lbl">Input Tokens</div>
+              </div>
+              <div class="usage-stat">
+                <div class="us-val" id="u-out">—</div>
+                <div class="us-lbl">Output Tokens</div>
+              </div>
+              <div class="usage-stat">
+                <div class="us-val" id="u-total">—</div>
+                <div class="us-lbl">Total</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Key Concepts</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Click any card to expand</div>
+    <div class="concepts-grid">
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">🧩</span>
+          <span>What is a Token?</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>A token is the smallest unit a model reads and writes. It can be a word, part of a word, or punctuation.<br><br>
+          <code>"Hello, world!"</code> → 4 tokens<br>
+          <code>"unbelievable"</code> → 3 tokens (<code>un</code> + <code>believ</code> + <code>able</code>)<br><br>
+          On average, 1 token ≈ 0.75 English words. Models have a <strong>context window</strong> — a maximum total tokens they can process in one request. You pay per token used.</p>
+        </div>
+      </div>
+
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">🌡</span>
+          <span>What is Temperature?</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>Temperature controls randomness. At each step the model has a probability distribution over all possible next tokens.<br><br>
+          <code>temperature: 0</code> — always picks the highest probability token. Deterministic, consistent.<br>
+          <code>temperature: 1</code> — samples from the distribution naturally.<br>
+          <code>temperature: 2</code> — flattens the distribution, more surprising/creative output.<br><br>
+          For factual tasks use 0.1–0.3. For creative writing try 0.8–1.2.</p>
+        </div>
+      </div>
+
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">💬</span>
+          <span>What is the Messages Array?</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>LLMs are stateless — they have no memory between requests. To maintain a conversation, you send the <em>entire history</em> with every request.<br><br>
+          Each message has a <code>role</code>:<br>
+          <code>"system"</code> — instructions that shape the model's behaviour<br>
+          <code>"user"</code> — the human's message<br>
+          <code>"assistant"</code> — the model's previous reply<br><br>
+          You keep appending to this array as the conversation grows.</p>
+        </div>
+      </div>
+
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">⚡</span>
+          <span>Streaming vs Batch</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>By default (<code>stream: false</code>), the API waits until the entire response is generated, then sends it all at once as one JSON object.<br><br>
+          With <code>stream: true</code>, the API sends each token as a Server-Sent Event (SSE) the moment it is generated — creating the familiar "typing" effect in chat interfaces.<br><br>
+          Streaming feels faster to the user even though total generation time is the same. It also lets you handle very long responses without timeout issues.</p>
+        </div>
+      </div>
+
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">🛑</span>
+          <span>stop_reason Explained</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>The response includes a <code>stop_reason</code> field telling you why generation stopped:<br><br>
+          <code>"end_turn"</code> — the model naturally finished its answer<br>
+          <code>"max_tokens"</code> — hit your <code>max_tokens</code> limit mid-sentence<br>
+          <code>"stop_sequence"</code> — matched a custom stop string you provided<br><br>
+          Always check this field. If it says <code>max_tokens</code>, the response is truncated and you may need a higher limit.</p>
+        </div>
+      </div>
+
+      <div class="concept-card" onclick="toggleConcept(this)">
+        <div class="concept-head">
+          <span class="concept-icon">🔐</span>
+          <span>API Keys &amp; Auth</span>
+          <span class="concept-arrow">›</span>
+        </div>
+        <div class="concept-body">
+          <p>Every request must include your secret key in the <code>x-api-key</code> header. This identifies you and your billing account.<br><br>
+          <strong>Never</strong> put your API key in frontend JavaScript — it will be visible to anyone who views page source. Always call the API from a backend server that keeps the key secret.<br><br>
+          If a key is leaked, rotate it immediately in the Anthropic console.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── MOCK RESPONSES ────────────────────────────────────────────────────
+const RESPONSES = {
+  token: `Tokens are the fundamental units that language models use to process text. Rather than reading character-by-character or word-by-word, models break input into tokens — which can be whole words, word fragments, or punctuation.
+
+A few examples:
+  "Hello"         → 1 token
+  "unbelievable"  → 3 tokens  (un · believ · able)
+  "GPT-4"         → 3 tokens  (G · PT · -4)
+
+On average, 1 token ≈ 0.75 English words. So 1,000 tokens ≈ 750 words.
+
+Why does it matter? You are billed per token, and models have a maximum context window — the total tokens they can "see" at once (input + output combined). Exceeding the window means older messages get dropped.`,
+
+  temperature: `Temperature controls how "random" or "creative" the model is at each generation step.
+
+Internally, the model produces a probability distribution over its entire vocabulary for the next token. Temperature reshapes that distribution:
+
+  temperature 0   → always picks the highest-probability token (deterministic)
+  temperature 0.7 → samples naturally from the distribution
+  temperature 2.0 → flattens the distribution, making unlikely tokens more probable
+
+Practical guidance:
+  • Factual Q&A, code    → 0.1 – 0.3
+  • Conversational chat  → 0.6 – 0.9
+  • Creative writing     → 0.9 – 1.3
+  • Brainstorming ideas  → 1.0 – 1.5`,
+
+  default: `Tokens are the atoms of language model processing — the smallest unit the model reads and writes.
+
+Here's what happens when you send a request:
+
+1. Your text is tokenised: split into subword pieces using a vocabulary of ~100,000 tokens
+2. Each token becomes a vector (a list of numbers encoding its meaning)
+3. The model runs billions of multiplication operations — the "attention" mechanism — to relate every token to every other token in context
+4. For each position, the model outputs a probability distribution over all possible next tokens
+5. A token is sampled (influenced by your temperature setting)
+6. That token is appended and the process repeats until the model emits a stop token or hits max_tokens
+
+The response you receive is the sequence of sampled tokens, decoded back into human-readable text. This is why streaming feels natural — you are literally watching tokens arrive one by one as the model generates them.`
+};
+
+function getMockResponse(msg) {
+  const m = (msg||'').toLowerCase();
+  if (m.includes('token')) return RESPONSES.token;
+  if (m.includes('temperature') || m.includes('temp')) return RESPONSES.temperature;
+  return RESPONSES.default;
+}
+
+// ── JSON HIGHLIGHT ────────────────────────────────────────────────────
+function highlight(json) {
+  return JSON.stringify(json, null, 2)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"([^"]+)":/g, '<span class="jk">"$1"</span>:')
+    .replace(/: "([^"]*)"/g,  (_, v) => `: <span class="js">"${v}"</span>`)
+    .replace(/: (-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+    .replace(/: (true|false)/g,  ': <span class="jb">$1</span>')
+    .replace(/: (null)/g,        ': <span class="jnull">$1</span>');
+}
+
+function highlightAnnotated(json) {
+  const TIPS = {
+    model:       'Which model to use. Different models trade off capability, speed and cost.',
+    max_tokens:  'Hard limit on output length. Generation stops here even mid-sentence. Check stop_reason to detect this.',
+    temperature: 'Randomness of sampling. 0 = always most likely token. Higher = more creative/varied.',
+    stream:      'If true, tokens arrive one-by-one via Server-Sent Events (SSE). If false, one JSON blob after completion.',
+    system:      'Instructions that shape the model\'s persona and behaviour for the whole conversation.',
+    messages:    'The full conversation history. LLMs are stateless — you resend everything every turn.',
+    role:        'Either "user" (human turn) or "assistant" (model turn). Determines whose voice this message represents.',
+    content:     'The actual text of the message.',
+  };
+  return JSON.stringify(json, null, 2)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"([^"]+)":/g, (_, k) => {
+      const tip = TIPS[k];
+      return tip
+        ? `<span class="jk annotated" data-tip="${tip}">"${k}"</span>:`
+        : `<span class="jk">"${k}"</span>:`;
+    })
+    .replace(/: "([^"]*)"/g,  (_, v) => `: <span class="js">"${v}"</span>`)
+    .replace(/: (-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+    .replace(/: (true|false)/g,  ': <span class="jb">$1</span>')
+    .replace(/: (null)/g,        ': <span class="jnull">$1</span>');
+}
+
+// ── LIVE REQUEST JSON ─────────────────────────────────────────────────
+function buildRequestObj() {
+  return {
+    model:       document.getElementById('model-select').value,
+    max_tokens:  parseInt(document.getElementById('max-tokens').value),
+    temperature: parseFloat(parseFloat(document.getElementById('temperature').value).toFixed(1)),
+    stream:      document.getElementById('stream-toggle').checked,
+    system:      document.getElementById('system-prompt').value || 'You are a helpful assistant.',
+    messages: [
+      { role: 'user', content: document.getElementById('user-message').value || '' }
+    ]
+  };
+}
+
+function updateLiveJSON() {
+  const obj = buildRequestObj();
+  document.getElementById('live-json-pre').innerHTML = highlight(obj);
+}
+
+// ── STEP MANAGEMENT ───────────────────────────────────────────────────
+function setStep(n) {
+  for (let i=1;i<=4;i++) {
+    const s = document.getElementById(`s${i}`);
+    const c = document.getElementById(`card${i}`);
+    s.classList.remove('active','done');
+    if (c) c.classList.remove('active-card','done-card');
+    if (i < n) { s.classList.add('done'); if(c) c.classList.add('done-card'); }
+    if (i === n) { s.classList.add('active'); if(c) c.classList.add('active-card'); }
+  }
+}
+
+function markDone(n) {
+  const s = document.getElementById(`s${n}`);
+  const c = document.getElementById(`card${n}`);
+  s.classList.remove('active'); s.classList.add('done');
+  if(c) { c.classList.remove('active-card'); c.classList.add('done-card'); }
+}
+
+// ── SLEEP ─────────────────────────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── MAIN SEND FLOW ────────────────────────────────────────────────────
+async function sendRequest() {
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  document.getElementById('send-label').textContent = 'Sending…';
+  document.getElementById('reset-btn').style.display = 'none';
+
+  const req = buildRequestObj();
+
+  // ── TRANSIT: request going out ────────────────────────────────────
+  const transit = document.getElementById('transit-bar');
+  transit.classList.add('visible');
+  document.getElementById('transit-label').textContent = 'HTTPS POST ›';
+  const pkt = document.getElementById('packet');
+  pkt.className = 'packet';
+  void pkt.offsetWidth;
+  pkt.classList.add('animate-right');
+  await sleep(900);
+
+  // ── STEP 2: HTTP request ──────────────────────────────────────────
+  setStep(2);
+  document.getElementById('annotated-json-pre').innerHTML = highlightAnnotated(req);
+  await sleep(600);
+  markDone(2);
+
+  // ── STEP 3: Processing ────────────────────────────────────────────
+  setStep(3);
+  document.getElementById('server-icon').classList.add('pulse');
+  document.getElementById('transit-label').textContent = '⟳ Generating';
+
+  const procs = ['proc1','proc2','proc3','proc4','proc5'];
+  for (const id of procs) {
+    document.getElementById(id).classList.add('active');
+    await sleep(380);
+    document.getElementById(id).classList.remove('active');
+    document.getElementById(id).classList.add('done');
+  }
+
+  // Token stream visual
+  const mockText = getMockResponse(req.messages[0].content);
+  const words = mockText.split(/\s+/).slice(0, 24);
+  const ts = document.getElementById('token-stream');
+  ts.classList.add('visible');
+  ts.innerHTML = '';
+  for (let i=0;i<words.length;i++) {
+    const span = document.createElement('span');
+    span.className = `tok tok-${i%4}`;
+    span.textContent = words[i];
+    ts.appendChild(span);
+    await sleep(80);
+  }
+  const ellipsis = document.createElement('span');
+  ellipsis.className = 'tok tok-0';
+  ellipsis.textContent = '…';
+  ts.appendChild(ellipsis);
+
+  await sleep(400);
+  document.getElementById('server-icon').classList.remove('pulse');
+  markDone(3);
+
+  // ── TRANSIT: response coming back ────────────────────────────────
+  document.getElementById('transit-label').textContent = '‹ Response';
+  pkt.className = 'packet';
+  void pkt.offsetWidth;
+  pkt.classList.add('animate-left');
+  await sleep(900);
+
+  // ── STEP 4: Response ─────────────────────────────────────────────
+  setStep(4);
+  transit.classList.remove('visible');
+
+  const inputTokens  = Math.ceil((req.system.split(' ').length + req.messages[0].content.split(' ').length) * 1.35);
+  const outputTokens = Math.ceil(mockText.split(' ').length * 1.35);
+
+  const responseObj = {
+    id:    'msg_' + Math.random().toString(36).slice(2,14),
+    type:  'message',
+    role:  'assistant',
+    content: [{ type: 'text', text: mockText.slice(0, 60) + '…' }],
+    model: req.model + '-20250514',
+    stop_reason:    'end_turn',
+    stop_sequence:  null,
+    usage: { input_tokens: inputTokens, output_tokens: outputTokens }
+  };
+
+  document.getElementById('status-badge').style.display = '';
+  document.getElementById('response-json-pre').innerHTML = highlight(responseObj);
+
+  // Stream rendered output
+  const out = document.getElementById('rendered-output');
+  out.innerHTML = '<span class="cursor"></span>';
+  const cursor = out.querySelector('.cursor');
+  let rendered = '';
+  for (const char of mockText) {
+    rendered += char;
+    out.textContent = rendered;
+    out.appendChild(cursor);
+    await sleep(char === '\n' ? 60 : 12 + Math.random() * 16);
+  }
+  cursor.remove();
+
+  // Usage stats
+  document.getElementById('u-in').textContent    = inputTokens;
+  document.getElementById('u-out').textContent   = outputTokens;
+  document.getElementById('u-total').textContent = inputTokens + outputTokens;
+  document.getElementById('usage-stats').style.display = 'grid';
+
+  markDone(4);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  document.getElementById('send-label').textContent = '▶  Send Again';
+  document.getElementById('reset-btn').style.display = '';
+}
+
+// ── RESET ─────────────────────────────────────────────────────────────
+function resetAll() {
+  setStep(1);
+  document.getElementById('card1').classList.add('active-card');
+  document.getElementById('transit-bar').classList.remove('visible');
+  document.getElementById('token-stream').classList.remove('visible');
+  document.getElementById('token-stream').innerHTML = '';
+  document.getElementById('response-json-pre').innerHTML = '';
+  document.getElementById('rendered-output').innerHTML = '';
+  document.getElementById('usage-stats').style.display = 'none';
+  document.getElementById('status-badge').style.display = 'none';
+  document.getElementById('annotated-json-pre').innerHTML = '';
+  document.getElementById('send-label').textContent = '▶  Send Request';
+  document.getElementById('reset-btn').style.display = 'none';
+  ['proc1','proc2','proc3','proc4','proc5'].forEach(id => {
+    document.getElementById(id).classList.remove('active','done');
+  });
+  document.getElementById('u-in').textContent = '—';
+  document.getElementById('u-out').textContent = '—';
+  document.getElementById('u-total').textContent = '—';
+}
+
+// ── CONCEPTS ──────────────────────────────────────────────────────────
+function toggleConcept(el) {
+  el.classList.toggle('open');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+updateLiveJSON();
+</script>
+</body>
+</html>

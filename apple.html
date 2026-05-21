@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>929</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #000;
+  color: #f5f5f7;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── WORDMARK ── */
+#wordmark {
+  position: fixed;
+  top: 28px;
+  left: 36px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #f5f5f7;
+  z-index: 50;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+#wordmark span { font-weight: 200; color: rgba(255,255,255,0.4); margin-left: 6px; font-size: 13px; letter-spacing: 0; }
+
+/* ── CART PILL ── */
+#cart-pill {
+  position: fixed;
+  top: 24px;
+  right: 36px;
+  z-index: 500;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #f5f5f7;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.25s, opacity 0.4s;
+  letter-spacing: 0.01em;
+}
+#cart-pill:hover { background: rgba(255,255,255,0.18); }
+#cart-pill .pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #000;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+#cart-pill .pill-count.hidden { display: none; }
+
+/* ── CLOSED RIBBON ── */
+#closed-ribbon {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  padding: 8px 20px;
+  border-radius: 20px;
+  display: none;
+  z-index: 50;
+}
+
+/* ── STORE ARC ── */
+#store {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#store.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
+
+#arc-svg {
+  width: min(90vw, 700px);
+  height: auto;
+  overflow: visible;
+}
+
+.seg-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+}
+.seg-hit:hover ~ .arc-divs .arc-div { stroke: rgba(255,255,255,0.4); }
+
+.arc-outer { fill: none; stroke: rgba(255,255,255,0.2); stroke-width: 0.6; pointer-events: none; }
+.arc-inner { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 0.5; pointer-events: none; }
+.arc-div { stroke: rgba(255,255,255,0.12); stroke-width: 0.5; pointer-events: none; transition: stroke 0.25s; }
+.arc-div.active { stroke: rgba(255,255,255,0.5); }
+
+.arc-label {
+  font-size: 9.5px;
+  fill: rgba(255,255,255,0.38);
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  cursor: pointer;
+  transition: fill 0.25s;
+  text-transform: uppercase;
+}
+.arc-label:hover { fill: rgba(255,255,255,0.85); }
+.arc-label.active { fill: #fff; font-weight: 600; }
+
+.arc-num {
+  font-size: 11px;
+  fill: rgba(255,255,255,0.1);
+  pointer-events: none;
+}
+
+/* Checkout centre */
+.checkout-ring {
+  fill: none;
+  stroke: rgba(255,255,255,0.2);
+  stroke-width: 0.8;
+  transition: stroke 0.25s;
+  cursor: pointer;
+}
+.checkout-ring:hover { stroke: rgba(255,255,255,0.7); }
+.checkout-label {
+  fill: rgba(255,255,255,0.4);
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: fill 0.25s;
+}
+.checkout-sub {
+  fill: rgba(255,255,255,0.2);
+  font-size: 6.5px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+/* ── STATION VIEW ── */
+#station-view {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+#station-view.open { transform: translateY(0); }
+
+#station-header {
+  padding: 52px 56px 0;
+  flex-shrink: 0;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #0071e3;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  margin-bottom: 24px;
+  padding: 0;
+  letter-spacing: -0.01em;
+  transition: opacity 0.2s;
+}
+.back-link:hover { opacity: 0.7; }
+.back-link svg { width: 8px; height: 13px; }
+
+.station-name-lg {
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 700;
+  color: #1d1d1f;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.station-tagline {
+  font-size: 17px;
+  color: #6e6e73;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.station-divider {
+  height: 1px;
+  background: #d2d2d7;
+  margin: 28px 56px 0;
+  flex-shrink: 0;
+}
+
+#items-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 56px 48px;
+  -webkit-overflow-scrolling: touch;
+}
+#items-scroll::-webkit-scrollbar { width: 0; }
+
+.items-apple {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px;
+  background: #d2d2d7;
+  border: 1px solid #d2d2d7;
+}
+
+.item-apple {
+  background: #fff;
+  padding: 24px 28px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+  user-select: none;
+}
+.item-apple:hover { background: #f5f5f7; }
+.item-apple:active { background: #e8e8ed; }
+
+.ia-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+  letter-spacing: -0.01em;
+  margin-bottom: 5px;
+}
+.ia-desc {
+  font-size: 13px;
+  color: #6e6e73;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+.ia-foot { display: flex; align-items: center; justify-content: space-between; }
+.ia-price {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  letter-spacing: -0.01em;
+}
+.ia-add {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0071e3;
+  letter-spacing: -0.01em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  transition: opacity 0.2s;
+}
+.ia-add:hover { opacity: 0.7; }
+.ia-add:disabled { color: #aeaeb2; cursor: default; }
+
+/* Added flash */
+.item-apple.adding { background: #e8f4ff; }
+
+/* ── CART SHEET ── */
+#cart-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+}
+#cart-sheet.open { pointer-events: all; }
+
+#cart-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.4s ease;
+}
+#cart-sheet.open #cart-backdrop { background: rgba(0,0,0,0.4); }
+
+#cart-inner {
+  position: absolute;
+  bottom: 0;
+  left: 0; right: 0;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+#cart-sheet.open #cart-inner { transform: translateY(0); }
+
+.cart-handle {
+  width: 36px;
+  height: 4px;
+  background: #d2d2d7;
+  border-radius: 2px;
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+.cart-sheet-head {
+  padding: 20px 28px 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #f2f2f7;
+}
+.cart-sheet-title { font-size: 18px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.02em; }
+.cart-sheet-body { flex: 1; overflow-y: auto; padding: 0 28px; }
+.cart-sheet-body::-webkit-scrollbar { width: 0; }
+
+.cs-empty { text-align: center; color: #aeaeb2; font-size: 15px; padding: 48px 0; letter-spacing: -0.01em; }
+
+.cs-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #f2f2f7;
+  gap: 12px;
+}
+.cs-item:last-child { border-bottom: none; }
+.cs-info { flex: 1; }
+.cs-name { font-size: 15px; font-weight: 500; color: #1d1d1f; letter-spacing: -0.01em; }
+.cs-station { font-size: 12px; color: #aeaeb2; margin-top: 1px; }
+.cs-qty-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.cs-qb {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #f2f2f7; border: none; cursor: pointer;
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  color: #1d1d1f; transition: background 0.15s;
+}
+.cs-qb:hover { background: #e5e5ea; }
+.cs-qv { font-size: 14px; font-weight: 600; color: #1d1d1f; min-width: 14px; text-align: center; }
+.cs-price { font-size: 15px; font-weight: 600; color: #1d1d1f; white-space: nowrap; }
+
+.cart-sheet-foot {
+  padding: 16px 28px 36px;
+  flex-shrink: 0;
+  border-top: 1px solid #f2f2f7;
+}
+.cs-total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.cs-total-lbl { font-size: 15px; color: #6e6e73; }
+.cs-total-val { font-size: 22px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.03em; }
+.cs-go-btn {
+  width: 100%;
+  background: #0071e3;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  transition: background 0.2s;
+}
+.cs-go-btn:hover:not(:disabled) { background: #0077ed; }
+.cs-go-btn:disabled { background: #aeaeb2; cursor: default; }
+
+/* ── CHECKOUT ── */
+#checkout-view {
+  position: fixed;
+  inset: 0;
+  background: #f5f5f7;
+  z-index: 400;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+#checkout-view.open { transform: translateX(0); }
+
+#checkout-view::-webkit-scrollbar { width: 0; }
+
+.co-wrap { max-width: 540px; margin: 0 auto; padding: 64px 28px 80px; }
+
+.co-back {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 400; color: #0071e3;
+  cursor: pointer; background: none; border: none;
+  font-family: inherit; margin-bottom: 32px; padding: 0;
+  letter-spacing: -0.01em; transition: opacity 0.2s;
+}
+.co-back:hover { opacity: 0.7; }
+
+.co-title { font-size: 42px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.03em; margin-bottom: 4px; }
+.co-sub { font-size: 15px; color: #6e6e73; margin-bottom: 40px; }
+
+.co-receipt {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.co-section-lbl {
+  padding: 12px 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aeaeb2;
+  background: #f5f5f7;
+  border-bottom: 1px solid #f2f2f7;
+}
+.co-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid #f2f2f7;
+}
+.co-line:last-child { border-bottom: none; }
+.co-line-name { font-size: 15px; color: #1d1d1f; letter-spacing: -0.01em; }
+.co-line-qty { font-size: 13px; color: #aeaeb2; margin-left: 4px; }
+.co-line-price { font-size: 15px; font-weight: 600; color: #1d1d1f; }
+
+.co-total-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 28px;
+}
+.co-total-lbl { font-size: 17px; color: #1d1d1f; font-weight: 500; }
+.co-total-val { font-size: 28px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.03em; }
+
+.co-place-btn {
+  width: 100%;
+  background: #0071e3;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+  transition: background 0.2s;
+}
+.co-place-btn:hover { background: #0077ed; }
+
+.co-cancel-btn {
+  display: block; width: 100%;
+  background: none; border: none;
+  font-size: 15px; color: #6e6e73;
+  cursor: pointer; font-family: inherit;
+  padding: 10px; letter-spacing: -0.01em;
+}
+
+/* ── ORDER SUCCESS ── */
+.order-success {
+  text-align: center;
+  padding: 80px 28px;
+}
+.success-icon {
+  width: 72px; height: 72px;
+  background: #34c759;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 24px;
+  font-size: 32px;
+  color: #fff;
+}
+.success-title { font-size: 32px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.03em; margin-bottom: 8px; }
+.success-sub { font-size: 17px; color: #6e6e73; margin-bottom: 40px; letter-spacing: -0.01em; line-height: 1.5; }
+.success-btn {
+  background: #0071e3; color: #fff; border: none;
+  border-radius: 12px; padding: 14px 32px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit; letter-spacing: -0.01em;
+}
+</style>
+</head>
+<body>
+
+<div id="wordmark">929 <span>Cafe</span></div>
+
+<button id="cart-pill" onclick="toggleCart()">
+  Cart <span class="pill-count hidden" id="cart-count">0</span>
+</button>
+
+<div id="closed-ribbon">Closed · Opens 9:00 AM</div>
+
+<!-- Store arc -->
+<div id="store">
+  <svg id="arc-svg" viewBox="-55 -25 730 375"
+       xmlns="http://www.w3.org/2000/svg"
+       font-family="-apple-system,'SF Pro Display',system-ui,sans-serif"
+       overflow="visible">
+  </svg>
+</div>
+
+<!-- Station detail -->
+<div id="station-view">
+  <div id="station-header">
+    <button class="back-link" onclick="closeStation()">
+      <svg viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1L1 6.5L7 12" stroke="#0071e3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      All stations
+    </button>
+    <div class="station-name-lg" id="sv-name"></div>
+    <div class="station-tagline" id="sv-tag"></div>
+  </div>
+  <div class="station-divider"></div>
+  <div id="items-scroll">
+    <div class="items-apple" id="items-apple-grid"></div>
+  </div>
+</div>
+
+<!-- Cart sheet -->
+<div id="cart-sheet">
+  <div id="cart-backdrop" onclick="toggleCart()"></div>
+  <div id="cart-inner">
+    <div class="cart-handle"></div>
+    <div class="cart-sheet-head">
+      <div class="cart-sheet-title">Your order</div>
+    </div>
+    <div class="cart-sheet-body" id="cart-body"></div>
+    <div class="cart-sheet-foot">
+      <div class="cs-total-row">
+        <span class="cs-total-lbl">Total</span>
+        <span class="cs-total-val" id="cs-total">$0.00</span>
+      </div>
+      <button class="cs-go-btn" id="cs-go" onclick="goCheckout()" disabled>Review order</button>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout -->
+<div id="checkout-view">
+  <div class="co-wrap" id="co-wrap"></div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────
+const STATIONS = [
+  { id:1, name:'Coffee',       tag:'Espresso, cold brew, and more' },
+  { id:2, name:'Sushi',        tag:'Fresh nigiri, rolls, and starters' },
+  { id:3, name:'Boba',         tag:'Milk teas and fruit teas' },
+  { id:4, name:'Salad',        tag:'Seasonal bowls and greens' },
+  { id:5, name:'Ice Cream',    tag:'Scoops, sorbets, and gelato' },
+  { id:6, name:'Biryani',      tag:'Dum-cooked, fragrant rice dishes' },
+  { id:7, name:'Pizza',        tag:'Stone-baked, classic toppings' },
+  { id:8, name:'Juice Centre', tag:'Cold-pressed and blended drinks' },
+  { id:9, name:'Cake',         tag:'Slices and tarts, baked daily' },
+];
+
+const MENU = {
+  1:[
+    {id:'c1',name:'Espresso',desc:'Rich double shot, bold and intense',price:3.50},
+    {id:'c2',name:'Cappuccino',desc:'Espresso with velvety steamed milk foam',price:4.50},
+    {id:'c3',name:'Cold Brew',desc:'12-hour steep, smooth and refreshing',price:4.00},
+    {id:'c4',name:'Caramel Latte',desc:'Espresso, steamed milk, house caramel',price:5.00},
+    {id:'c5',name:'Mocha',desc:'Espresso with dark chocolate and milk',price:5.00},
+  ],
+  2:[
+    {id:'s1',name:'Salmon Nigiri',desc:'Fresh Atlantic salmon on seasoned rice (2pc)',price:6.50},
+    {id:'s2',name:'Tuna Roll',desc:'Bluefin tuna, cucumber, sesame (6pc)',price:8.50},
+    {id:'s3',name:'California Roll',desc:'Crab, avocado, cucumber (8pc)',price:7.50},
+    {id:'s4',name:'Dragon Roll',desc:'Prawn tempura topped with avocado',price:13.00},
+    {id:'s5',name:'Edamame',desc:'Salted soybean pods, sea salt',price:4.00},
+  ],
+  3:[
+    {id:'b1',name:'Brown Sugar Boba',desc:'Tiger stripes, fresh milk, tapioca pearls',price:5.50},
+    {id:'b2',name:'Taro Milk Tea',desc:'Creamy taro with chewy pearls',price:5.50},
+    {id:'b3',name:'Matcha Latte',desc:'Ceremonial grade matcha, oat milk',price:5.50},
+    {id:'b4',name:'Mango Fruit Tea',desc:'Tropical mango with green tea base',price:5.00},
+    {id:'b5',name:'Strawberry Milk Tea',desc:'Fresh strawberry with classic milk tea',price:5.50},
+  ],
+  4:[
+    {id:'sl1',name:'Caesar Salad',desc:'Romaine, croutons, parmesan, house dressing',price:9.00},
+    {id:'sl2',name:'Greek Salad',desc:'Tomato, cucumber, olive, feta, oregano',price:8.50},
+    {id:'sl3',name:'Asian Sesame',desc:'Mixed greens, mandarin, sesame ginger dressing',price:9.50},
+    {id:'sl4',name:'Quinoa Bowl',desc:'Tri-colour quinoa, roasted veg, tahini',price:10.50},
+    {id:'sl5',name:'Caprese',desc:'Buffalo mozzarella, heritage tomato, basil',price:8.00},
+  ],
+  5:[
+    {id:'i1',name:'Vanilla Bean',desc:'Madagascar vanilla, fresh cream',price:3.50},
+    {id:'i2',name:'Dark Chocolate',desc:'70% Valrhona chocolate gelato',price:3.50},
+    {id:'i3',name:'Strawberry Sorbet',desc:'Fresh strawberry, dairy-free',price:3.50},
+    {id:'i4',name:'Mango Sorbet',desc:'Alphonso mango, light and tropical',price:4.00},
+    {id:'i5',name:'Matcha Ice Cream',desc:'Uji matcha with white chocolate swirl',price:4.50},
+  ],
+  6:[
+    {id:'br1',name:'Chicken Biryani',desc:'Basmati rice, slow-cooked chicken, saffron',price:13.00},
+    {id:'br2',name:'Lamb Biryani',desc:'Tender lamb, whole spices, caramelised onion',price:15.00},
+    {id:'br3',name:'Veg Biryani',desc:'Seasonal vegetables, mint, dum-cooked',price:11.00},
+    {id:'br4',name:'Prawn Biryani',desc:'Tiger prawns, coastal spice blend',price:16.00},
+    {id:'br5',name:'Egg Biryani',desc:'Free-range eggs, golden onion, biryani masala',price:10.00},
+  ],
+  7:[
+    {id:'p1',name:'Margherita',desc:'San Marzano tomato, fresh mozzarella, basil',price:11.00},
+    {id:'p2',name:'Pepperoni',desc:'Classic pepperoni, mozzarella, oregano',price:13.00},
+    {id:'p3',name:'BBQ Chicken',desc:'Smoky BBQ base, grilled chicken, red onion',price:13.50},
+    {id:'p4',name:'Veggie Supreme',desc:'Roasted capsicum, mushroom, olives, artichoke',price:12.00},
+    {id:'p5',name:'Four Cheese',desc:'Mozzarella, gorgonzola, pecorino, ricotta',price:13.50},
+  ],
+  8:[
+    {id:'j1',name:'Fresh Orange',desc:'Cold-pressed Valencia oranges',price:4.50},
+    {id:'j2',name:'Watermelon Cooler',desc:'Seedless watermelon, mint, lime',price:4.50},
+    {id:'j3',name:'Green Detox',desc:'Spinach, cucumber, ginger, green apple',price:5.50},
+    {id:'j4',name:'Mango Lassi',desc:'Alphonso mango, yoghurt, cardamom',price:5.00},
+    {id:'j5',name:'Berry Smoothie',desc:'Mixed berries, banana, almond milk',price:5.50},
+  ],
+  9:[
+    {id:'ca1',name:'Chocolate Fudge',desc:'Warm flourless chocolate cake, ganache',price:6.50},
+    {id:'ca2',name:'Carrot Cake',desc:'Spiced carrot, cream cheese frosting',price:5.50},
+    {id:'ca3',name:'Cheesecake',desc:'New York style, berry compote',price:6.00},
+    {id:'ca4',name:'Red Velvet',desc:'Moist red velvet, white chocolate cream',price:6.00},
+    {id:'ca5',name:'Lemon Tart',desc:'Tangy lemon curd, buttery shortcrust',price:5.50},
+  ],
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let cart = [];
+let stationOpen = false;
+
+// ── HOURS ─────────────────────────────────────────────────────────────
+function isOpen() { const h = new Date().getHours(); return h >= 9 && h < 21; }
+
+// ── SVG BUILD ─────────────────────────────────────────────────────────
+const CX=310, CY=315, RO=250, RI=90, N=9;
+const rad = d => d*Math.PI/180;
+const fx  = n => Math.round(n*10)/10;
+
+function buildArc() {
+  const svg = document.getElementById('arc-svg');
+  let h = '';
+
+  // Outer arc
+  h += `<path class="arc-outer" d="M${CX-RO},${CY} A${RO},${RO} 0 0,0 ${CX+RO},${CY}"/>`;
+  // Inner arc
+  h += `<path class="arc-inner" d="M${CX-RI},${CY} A${RI},${RI} 0 0,0 ${CX+RI},${CY}"/>`;
+
+  // Divider lines
+  for (let i=0;i<=N;i++) {
+    const a=rad(180-i*20);
+    h += `<line class="arc-div" id="div${i}"
+      x1="${fx(CX+RI*Math.cos(a))}" y1="${fx(CY-RI*Math.sin(a))}"
+      x2="${fx(CX+RO*Math.cos(a))}" y2="${fx(CY-RO*Math.sin(a))}"/>`;
+  }
+
+  // Invisible hit areas + position numbers
+  for (let i=0;i<N;i++) {
+    const s=rad(180-i*20), e=rad(180-(i+1)*20);
+    const x1=CX+RO*Math.cos(s),y1=CY-RO*Math.sin(s);
+    const x2=CX+RO*Math.cos(e),y2=CY-RO*Math.sin(e);
+    const x3=CX+RI*Math.cos(e),y3=CY-RI*Math.sin(e);
+    const x4=CX+RI*Math.cos(s),y4=CY-RI*Math.sin(s);
+    const d=`M${fx(x1)},${fx(y1)} A${RO},${RO} 0 0,0 ${fx(x2)},${fx(y2)} L${fx(x3)},${fx(y3)} A${RI},${RI} 0 0,1 ${fx(x4)},${fx(y4)} Z`;
+    h += `<path class="seg-hit" id="hit${i}" d="${d}" onclick="openStation(${i})"/>`;
+
+    // Position number
+    const a=rad(180-(i+0.5)*20), rm=(RO+RI)/2;
+    h += `<text class="arc-num" x="${fx(CX+rm*Math.cos(a))}" y="${fx(CY-rm*Math.sin(a)+4)}" text-anchor="middle" pointer-events="none">${i+1}</text>`;
+  }
+
+  // Labels
+  const ANCHOR=['end','end','middle','middle','middle','middle','middle','start','start'];
+  for (let i=0;i<N;i++) {
+    const a=rad(180-(i+0.5)*20), RL=283;
+    const lx=CX+RL*Math.cos(a), ly=CY-RL*Math.sin(a);
+    const words=STATIONS[i].name.split(' ');
+    const anc=ANCHOR[i];
+    if (words.length===1) {
+      h += `<text class="arc-label" id="lbl${i}" x="${fx(lx)}" y="${fx(ly+4)}"
+        text-anchor="${anc}" onclick="openStation(${i})">${words[0]}</text>`;
+    } else {
+      h += `<text class="arc-label" id="lbl${i}" text-anchor="${anc}" onclick="openStation(${i})">
+        <tspan x="${fx(lx)}" y="${fx(ly-3)}">${words[0]}</tspan>
+        <tspan x="${fx(lx)}" dy="13">${words[1]}</tspan>
+      </text>`;
+    }
+  }
+
+  // Checkout ring (centre)
+  h += `<g onclick="goCheckout()" style="cursor:pointer">
+    <circle class="checkout-ring" cx="${CX}" cy="${CY-14}" r="38" id="co-ring"/>
+    <text class="checkout-label" x="${CX}" y="${CY-17}" text-anchor="middle">CHECKOUT</text>
+    <text class="checkout-sub"   x="${CX}" y="${CY-6}"  text-anchor="middle">tap to pay</text>
+  </g>`;
+
+  // Base + entrance
+  h += `<line x1="${CX-RI}" y1="${CY}" x2="${CX+RI}" y2="${CY}" stroke="rgba(255,255,255,0.15)" stroke-width="0.6" pointer-events="none"/>`;
+  h += `<text x="${CX}" y="${CY+17}" text-anchor="middle" fill="rgba(255,255,255,0.18)" font-size="8" letter-spacing="0.15em" pointer-events="none">ENTRANCE</text>`;
+
+  svg.innerHTML = h;
+}
+
+// ── STATION OPEN / CLOSE ──────────────────────────────────────────────
+function openStation(i) {
+  const st = STATIONS[i];
+  document.getElementById('sv-name').textContent = st.name;
+  document.getElementById('sv-tag').textContent  = st.tag;
+  renderItems(i);
+  document.getElementById('station-view').classList.add('open');
+  document.getElementById('store').classList.add('hidden');
+  stationOpen = true;
+}
+
+function closeStation() {
+  document.getElementById('station-view').classList.remove('open');
+  document.getElementById('store').classList.remove('hidden');
+  stationOpen = false;
+}
+
+function renderItems(i) {
+  const st = STATIONS[i];
+  const items = MENU[st.id];
+  const open = isOpen();
+  document.getElementById('items-apple-grid').innerHTML = items.map(it => `
+    <div class="item-apple" onclick="${open ? `addItem(${st.id},'${it.id}','${esc(it.name)}',${it.price},this)` : ''}">
+      <div class="ia-name">${it.name}</div>
+      <div class="ia-desc">${it.desc}</div>
+      <div class="ia-foot">
+        <div class="ia-price">$${it.price.toFixed(2)}</div>
+        <button class="ia-add" onclick="event.stopPropagation();${open ? `addItem(${st.id},'${it.id}','${esc(it.name)}',${it.price},this.closest('.item-apple'))` : ''}" ${open?'':'disabled'}>
+          ${open ? 'Add' : 'Closed'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) { return s.replace(/'/g,"\\'"); }
+
+// ── CART ─────────────────────────────────────────────────────────────
+function addItem(stId, itId, name, price, cardEl) {
+  const ex = cart.find(c=>c.itId===itId);
+  if (ex) { ex.qty++; } else {
+    cart.push({stId, itId, name, price, qty:1, stName: STATIONS.find(s=>s.id===stId).name});
+  }
+  if (cardEl) {
+    cardEl.classList.add('adding');
+    setTimeout(()=>cardEl.classList.remove('adding'), 350);
+  }
+  refreshCart();
+}
+
+function adjQty(itId, d) {
+  const idx = cart.findIndex(c=>c.itId===itId);
+  if (idx<0) return;
+  cart[idx].qty += d;
+  if (cart[idx].qty<=0) cart.splice(idx,1);
+  refreshCart();
+}
+
+function total() { return cart.reduce((s,c)=>s+c.price*c.qty,0); }
+function count() { return cart.reduce((s,c)=>s+c.qty,0); }
+
+function refreshCart() {
+  const n = count();
+  const pill = document.getElementById('cart-count');
+  pill.textContent = n;
+  pill.classList.toggle('hidden', n===0);
+  document.getElementById('cs-total').textContent = `$${total().toFixed(2)}`;
+  document.getElementById('cs-go').disabled = cart.length===0;
+
+  const body = document.getElementById('cart-body');
+  if (!cart.length) {
+    body.innerHTML = '<div class="cs-empty">Nothing added yet.</div>';
+    return;
+  }
+  body.innerHTML = cart.map(c=>`
+    <div class="cs-item">
+      <div class="cs-info">
+        <div class="cs-name">${c.name}</div>
+        <div class="cs-station">${c.stName}</div>
+        <div class="cs-qty-row">
+          <button class="cs-qb" onclick="adjQty('${c.itId}',-1)">−</button>
+          <span class="cs-qv">${c.qty}</span>
+          <button class="cs-qb" onclick="adjQty('${c.itId}',1)">+</button>
+        </div>
+      </div>
+      <div class="cs-price">$${(c.price*c.qty).toFixed(2)}</div>
+    </div>
+  `).join('');
+}
+
+function toggleCart() {
+  document.getElementById('cart-sheet').classList.toggle('open');
+}
+
+// ── CHECKOUT ─────────────────────────────────────────────────────────
+function goCheckout() {
+  document.getElementById('cart-sheet').classList.remove('open');
+  renderCheckout();
+  document.getElementById('checkout-view').classList.add('open');
+}
+
+function renderCheckout() {
+  const wrap = document.getElementById('co-wrap');
+  if (!cart.length) {
+    wrap.innerHTML = `
+      <div class="order-success">
+        <div class="success-icon">✓</div>
+        <div class="success-title">Order placed.</div>
+        <div class="success-sub">Please collect from the checkout<br>counter when your name is called.</div>
+        <button class="success-btn" onclick="document.getElementById('checkout-view').classList.remove('open'); cart=[]; refreshCart();">Back to store</button>
+      </div>`;
+    return;
+  }
+  const grouped = {};
+  cart.forEach(c=>{
+    if (!grouped[c.stId]) grouped[c.stId]={name:c.stName,items:[]};
+    grouped[c.stId].items.push(c);
+  });
+  const blocks = Object.values(grouped).map(g=>`
+    <div class="co-receipt">
+      <div class="co-section-lbl">${g.name}</div>
+      ${g.items.map(i=>`
+        <div class="co-line">
+          <span class="co-line-name">${i.name}<span class="co-line-qty"> × ${i.qty}</span></span>
+          <span class="co-line-price">$${(i.price*i.qty).toFixed(2)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+  wrap.innerHTML = `
+    <button class="co-back" onclick="document.getElementById('checkout-view').classList.remove('open')">
+      <svg viewBox="0 0 8 13" fill="none" width="8" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1L1 6.5L7 12" stroke="#0071e3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="co-title">Review order</div>
+    <div class="co-sub">Takeout · Single collection point</div>
+    ${blocks}
+    <div class="co-total-card">
+      <span class="co-total-lbl">Total</span>
+      <span class="co-total-val">$${total().toFixed(2)}</span>
+    </div>
+    <button class="co-place-btn" onclick="placeOrder()">Place order</button>
+    <button class="co-cancel-btn" onclick="document.getElementById('checkout-view').classList.remove('open')">Cancel</button>
+  `;
+}
+
+function placeOrder() {
+  cart = [];
+  refreshCart();
+  renderCheckout();
+}
+
+// ── HOURS GATE ────────────────────────────────────────────────────────
+function checkHours() {
+  document.getElementById('closed-ribbon').style.display = isOpen() ? 'none' : 'block';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+buildArc();
+checkHours();
+refreshCart();
+setInterval(checkHours, 60000);
+</script>
+</body>
+</html>
